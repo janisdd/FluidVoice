@@ -199,7 +199,10 @@ struct SettingsView: View {
 
                                 Picker("", selection: Binding(
                                     get: { SettingsStore.shared.transcriptionStartSound },
-                                    set: { SettingsStore.shared.transcriptionStartSound = $0 }
+                                    set: { newValue in
+                                        SettingsStore.shared.transcriptionStartSound = newValue
+                                        TranscriptionSoundPlayer.shared.playPreview(sound: newValue)
+                                    }
                                 )) {
                                     ForEach(SettingsStore.TranscriptionStartSound.allCases) { option in
                                         Text(option.displayName).tag(option)
@@ -208,6 +211,43 @@ struct SettingsView: View {
                                 .pickerStyle(.menu)
                                 .frame(width: 170, alignment: .trailing)
                             }
+
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Volume")
+                                        .font(.body)
+                                    Text("Adjust the notification sound volume.")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Spacer()
+
+                                Slider(
+                                    value: Binding(
+                                        get: { Double(SettingsStore.shared.transcriptionSoundVolume) },
+                                        set: { SettingsStore.shared.transcriptionSoundVolume = Float($0) }
+                                    ),
+                                    in: 0...1,
+                                    step: 0.05
+                                ) { editing in
+                                    if !editing, SettingsStore.shared.transcriptionStartSound != .none {
+                                        TranscriptionSoundPlayer.shared.playPreviewAtVolume(
+                                            SettingsStore.shared.transcriptionSoundVolume
+                                        )
+                                    }
+                                }
+                                .frame(width: 150)
+                            }
+
+                            self.settingsToggleRow(
+                                title: "Independent Volume",
+                                description: "Sound volume stays constant regardless of system volume. Mute is still respected.",
+                                isOn: Binding(
+                                    get: { SettingsStore.shared.transcriptionSoundIndependentVolume },
+                                    set: { SettingsStore.shared.transcriptionSoundIndependentVolume = $0 }
+                                )
+                            )
 
                             Divider().opacity(0.2)
 
