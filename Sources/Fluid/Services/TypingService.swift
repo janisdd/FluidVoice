@@ -53,7 +53,11 @@ final class TypingService {
            let strategy = InsertionStrategy(rawValue: raw) {
             return strategy
         }
-        return .allPasteMethods
+        return .auto
+    }
+
+    private var textInsertionMode: SettingsStore.TextInsertionMode {
+        SettingsStore.shared.textInsertionMode
     }
 
     // MARK: - Focus helpers (shared)
@@ -215,20 +219,20 @@ final class TypingService {
             return
         }
 
-        // Preferred: behave like a user paste after the app has been restored.
-        // This tends to work better for custom web editors than posting Cmd+V to a PID.
-        if let preferredTargetPID, preferredTargetPID > 0 {
-            self.log("[TypingService] Trying global clipboard insertion after restoring preferred PID \(preferredTargetPID)")
-            if self.insertTextViaClipboard(text) {
-                self.log("[TypingService] SUCCESS: Global clipboard insertion completed for preferred target")
+        if self.textInsertionMode == .reliablePaste {
+            self.log("[TypingService] Reliable Paste mode enabled")
+            if self.tryReliablePasteInsertion(text, preferredTargetPID: preferredTargetPID) {
+                self.log("[TypingService] SUCCESS: Reliable Paste mode completed")
                 return
             }
-            self.log("[TypingService] Global clipboard insertion failed, trying clipboard-to-PID fallback")
-            if self.insertTextViaClipboardToPid(text, targetPID: preferredTargetPID) {
-                self.log("[TypingService] SUCCESS: Clipboard-to-PID insertion completed")
+            self.log("[TypingService] Reliable Paste mode fell through to standard fallbacks")
+        } else if let preferredTargetPID, preferredTargetPID > 0 {
+            self.log("[TypingService] Standard mode: trying preferred PID unicode insertion first")
+            if self.insertTextBulkInstant(text, targetPID: preferredTargetPID) {
+                self.log("[TypingService] SUCCESS: Preferred PID CGEvent insertion completed")
                 return
             }
-            self.log("[TypingService] Clipboard-to-PID insertion failed, continuing fallback pipeline")
+            self.log("[TypingService] Preferred PID CGEvent insertion failed, continuing fallback pipeline")
         }
 
         if text.utf16.count > Self.cgEventUnicodeLimit {
@@ -366,6 +370,30 @@ final class TypingService {
         }
 
         return attemptedAny && succeeded
+    }
+
+    private func tryReliablePasteInsertion(_ text: String, preferredTargetPID: pid_t?) -> Bool {
+        self.log("[TypingService] Trying global clipboard insertion")
+        if self.insertTextViaClipboard(text) {
+            self.log("[TypingService] SUCCESS: Global clipboard insertion completed")
+            return true
+        }
+
+        self.log("[TypingService] Global clipboard insertion failed, trying menu paste")
+        if self.insertTextViaMenuPaste(text) {
+            self.log("[TypingService] SUCCESS: Menu paste insertion completed")
+            return true
+        }
+
+        if let preferredTargetPID, preferredTargetPID > 0 {
+            self.log("[TypingService] Menu paste failed, trying clipboard-to-PID fallback")
+            if self.insertTextViaClipboardToPid(text, targetPID: preferredTargetPID) {
+                self.log("[TypingService] SUCCESS: Clipboard-to-PID insertion completed")
+                return true
+            }
+        }
+
+        return false
     }
 
     private static let cgEventUnicodeLimit = 200

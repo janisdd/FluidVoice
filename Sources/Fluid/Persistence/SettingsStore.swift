@@ -77,6 +77,31 @@ final class SettingsStore: ObservableObject {
         }
     }
 
+    enum TextInsertionMode: String, CaseIterable, Identifiable, Codable {
+        case standard
+        case reliablePaste
+
+        var id: String { self.rawValue }
+
+        var displayName: String {
+            switch self {
+            case .standard:
+                return "Standard"
+            case .reliablePaste:
+                return "Reliable Paste"
+            }
+        }
+
+        var description: String {
+            switch self {
+            case .standard:
+                return "Keeps the current typing flow and avoids temporary clipboard paste unless later fallbacks need it."
+            case .reliablePaste:
+                return "Uses temporary clipboard paste first for better compatibility in browsers and Electron apps. Clipboard history apps may record dictated text briefly."
+            }
+        }
+    }
+
     struct DictationPromptProfile: Codable, Identifiable, Hashable {
         let id: String
         var name: String
@@ -824,6 +849,20 @@ final class SettingsStore: ObservableObject {
     var copyTranscriptionToClipboard: Bool {
         get { self.defaults.bool(forKey: Keys.copyTranscriptionToClipboard) }
         set { self.defaults.set(newValue, forKey: Keys.copyTranscriptionToClipboard) }
+    }
+
+    var textInsertionMode: TextInsertionMode {
+        get {
+            guard let raw = self.defaults.string(forKey: Keys.textInsertionMode),
+                  let mode = TextInsertionMode(rawValue: raw) else {
+                return .standard
+            }
+            return mode
+        }
+        set {
+            objectWillChange.send()
+            self.defaults.set(newValue.rawValue, forKey: Keys.textInsertionMode)
+        }
     }
 
     var preferredInputDeviceUID: String? {
@@ -2531,6 +2570,7 @@ private extension SettingsStore {
         static let enableStreamingPreview = "EnableStreamingPreview"
         static let enableAIStreaming = "EnableAIStreaming"
         static let copyTranscriptionToClipboard = "CopyTranscriptionToClipboard"
+        static let textInsertionMode = "TextInsertionMode"
         static let autoUpdateCheckEnabled = "AutoUpdateCheckEnabled"
         static let lastUpdateCheckDate = "LastUpdateCheckDate"
         static let updatePromptSnoozedUntil = "UpdatePromptSnoozedUntil"

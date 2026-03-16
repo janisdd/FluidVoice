@@ -569,6 +569,27 @@ struct SettingsView: View {
                                     }
                                     Divider().opacity(0.2)
 
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        Text("Text Insertion Mode")
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundStyle(.primary)
+
+                                        Text(SettingsStore.shared.textInsertionMode.description)
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(.secondary)
+
+                                        Picker("", selection: Binding(
+                                            get: { SettingsStore.shared.textInsertionMode },
+                                            set: { SettingsStore.shared.textInsertionMode = $0 }
+                                        )) {
+                                            ForEach(SettingsStore.TextInsertionMode.allCases) { mode in
+                                                Text(mode.displayName).tag(mode)
+                                            }
+                                        }
+                                        .pickerStyle(.segmented)
+                                    }
+                                    Divider().opacity(0.2)
+
                                     self.optionToggleRow(
                                         title: "Save Transcription History",
                                         description: "Save transcriptions for stats tracking. Disable for privacy.",
