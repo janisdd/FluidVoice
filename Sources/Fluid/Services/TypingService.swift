@@ -53,7 +53,7 @@ final class TypingService {
            let strategy = InsertionStrategy(rawValue: raw) {
             return strategy
         }
-        return .auto
+        return .allPasteMethods
     }
 
     // MARK: - Focus helpers (shared)
