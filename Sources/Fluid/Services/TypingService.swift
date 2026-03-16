@@ -31,30 +31,8 @@ final class TypingService {
         let items: [PasteboardItemSnapshot]
     }
 
-    private enum InsertionStrategy: String {
-        case auto
-        case globalPaste = "global_paste"
-        case pidPaste = "pid_paste"
-        case menuPaste = "menu_paste"
-        case allPasteMethods = "all_paste_methods"
-        case unicodePID = "unicode_pid"
-        case accessibilityOnly = "ax_only"
-    }
-
     private static let focusSnapshotQueue = DispatchQueue(label: "TypingService.FocusSnapshot")
     private static var focusSnapshot: FocusSnapshot?
-
-    private static var forcedInsertionStrategy: InsertionStrategy {
-        if let env = ProcessInfo.processInfo.environment["FLUID_TYPING_STRATEGY"],
-           let strategy = InsertionStrategy(rawValue: env) {
-            return strategy
-        }
-        if let raw = UserDefaults.standard.string(forKey: "typingInsertionStrategy"),
-           let strategy = InsertionStrategy(rawValue: raw) {
-            return strategy
-        }
-        return .auto
-    }
 
     private var textInsertionMode: SettingsStore.TextInsertionMode {
         SettingsStore.shared.textInsertionMode
@@ -208,16 +186,6 @@ final class TypingService {
     private func insertTextInstantly(_ text: String, preferredTargetPID: pid_t?) {
         self.log("[TypingService] insertTextInstantly called with \(text.count) characters")
         self.log("[TypingService] Attempting to type text: \"\(text.prefix(50))\(text.count > 50 ? "..." : "")\"")
-        self.log("[TypingService] Forced insertion strategy: \(Self.forcedInsertionStrategy.rawValue)")
-
-        if Self.forcedInsertionStrategy != .auto {
-            if self.runForcedInsertionStrategy(Self.forcedInsertionStrategy, text: text, preferredTargetPID: preferredTargetPID) {
-                self.log("[TypingService] SUCCESS: Forced insertion strategy completed")
-            } else {
-                self.log("[TypingService] ERROR: Forced insertion strategy failed")
-            }
-            return
-        }
 
         if self.textInsertionMode == .reliablePaste {
             self.log("[TypingService] Reliable Paste mode enabled")
@@ -319,57 +287,6 @@ final class TypingService {
             usleep(1000)
         }
         self.log("[TypingService] Character-by-character typing completed")
-    }
-
-    private func runForcedInsertionStrategy(
-        _ strategy: InsertionStrategy,
-        text: String,
-        preferredTargetPID: pid_t?
-    ) -> Bool {
-        switch strategy {
-        case .auto:
-            return false
-        case .globalPaste:
-            return self.insertTextViaClipboard(text)
-        case .pidPaste:
-            guard let preferredTargetPID, preferredTargetPID > 0 else { return false }
-            return self.insertTextViaClipboardToPid(text, targetPID: preferredTargetPID)
-        case .menuPaste:
-            return self.insertTextViaMenuPaste(text)
-        case .allPasteMethods:
-            return self.runAllPasteMethodTests(text: text, preferredTargetPID: preferredTargetPID)
-        case .unicodePID:
-            guard let preferredTargetPID, preferredTargetPID > 0 else { return false }
-            return self.insertTextBulkInstant(text, targetPID: preferredTargetPID)
-        case .accessibilityOnly:
-            return self.insertTextViaAccessibility(text)
-        }
-    }
-
-    private func runAllPasteMethodTests(text: String, preferredTargetPID: pid_t?) -> Bool {
-        self.log("[TypingService] Running all paste method tests sequentially")
-
-        let tests: [(label: String, action: () -> Bool)] = [
-            ("global_paste", { self.insertTextViaClipboard("[global_paste] \(text)") }),
-            ("menu_paste", { self.insertTextViaMenuPaste("[menu_paste] \(text)") }),
-            ("pid_paste", {
-                guard let preferredTargetPID, preferredTargetPID > 0 else { return false }
-                return self.insertTextViaClipboardToPid("[pid_paste] \(text)", targetPID: preferredTargetPID)
-            }),
-        ]
-
-        var attemptedAny = false
-        var succeeded = false
-
-        for test in tests {
-            attemptedAny = true
-            let didSucceed = test.action()
-            self.log("[TypingService] Paste test \(test.label) success=\(didSucceed)")
-            succeeded = succeeded || didSucceed
-            usleep(350_000)
-        }
-
-        return attemptedAny && succeeded
     }
 
     private func tryReliablePasteInsertion(_ text: String, preferredTargetPID: pid_t?) -> Bool {
