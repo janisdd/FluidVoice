@@ -225,9 +225,9 @@ final class TypingService {
                 self.log("[TypingService] SUCCESS: Reliable Paste mode completed")
                 return
             }
-            self.log("[TypingService] Reliable Paste mode fell through to standard fallbacks")
+            self.log("[TypingService] Reliable Paste mode fell through to direct-typing fallbacks")
         } else if let preferredTargetPID, preferredTargetPID > 0 {
-            self.log("[TypingService] Standard mode: trying preferred PID unicode insertion first")
+            self.log("[TypingService] Experimental Direct Typing mode: trying preferred PID unicode insertion first")
             if self.insertTextBulkInstant(text, targetPID: preferredTargetPID) {
                 self.log("[TypingService] SUCCESS: Preferred PID CGEvent insertion completed")
                 return

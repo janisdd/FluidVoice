@@ -86,7 +86,7 @@ final class SettingsStore: ObservableObject {
         var displayName: String {
             switch self {
             case .standard:
-                return "Standard"
+                return "Experimental Direct Typing"
             case .reliablePaste:
                 return "Reliable Paste"
             }
@@ -95,9 +95,9 @@ final class SettingsStore: ObservableObject {
         var description: String {
             switch self {
             case .standard:
-                return "Keeps the current typing flow and avoids temporary clipboard paste unless later fallbacks need it."
+                return "Avoids changing your clipboard history by typing directly when possible. May fail or behave inconsistently in some apps."
             case .reliablePaste:
-                return "Uses temporary clipboard paste first for better compatibility in browsers and Electron apps. Clipboard history apps may record dictated text briefly."
+                return "Works best across browsers and desktop apps. Uses a temporary clipboard paste, so clipboard history apps may briefly record dictated text."
             }
         }
     }
@@ -855,7 +855,7 @@ final class SettingsStore: ObservableObject {
         get {
             guard let raw = self.defaults.string(forKey: Keys.textInsertionMode),
                   let mode = TextInsertionMode(rawValue: raw) else {
-                return .standard
+                return .reliablePaste
             }
             return mode
         }
